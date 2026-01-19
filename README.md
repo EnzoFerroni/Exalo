@@ -1,4 +1,4 @@
-# SwiftStudentChallenge
+# Exalo
 
 ## Sobre o Projeto
 
