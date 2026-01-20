@@ -8,20 +8,20 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "SwiftStudentChallenge",
+    name: "Exalo",
     platforms: [
-        .iOS("16.0")
+        .iOS("17.0")
     ],
     products: [
         .iOSApplication(
-            name: "SwiftStudentChallenge",
+            name: "Exalo",
             targets: ["AppModule"],
-            bundleIdentifier: "com.AppleDeveloperAcademyMackenzie.SwiftStudentChallenge",
+            bundleIdentifier: "com.AppleDeveloperAcademyMackenzie.Exalo",
             teamIdentifier: "JC55C9UADF",
             displayVersion: "1.0",
             bundleVersion: "1",
-            appIcon: .placeholder(icon: .gamepad),
-            accentColor: .presetColor(.indigo),
+            appIcon: .placeholder(icon: .sparkle),
+            accentColor: .presetColor(.green),
             supportedDeviceFamilies: [
                 .pad,
                 .phone
@@ -32,7 +32,7 @@ let package = Package(
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
-            appCategory: .games
+            additionalInfoPlistContentFilePath: "AppInfo.plist"
         )
     ],
     targets: [
@@ -41,5 +41,5 @@ let package = Package(
             path: "."
         )
     ],
-    swiftLanguageVersions: [.version("6")]
+    swiftLanguageModes: [.v6]
 )
