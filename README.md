@@ -1,10 +1,11 @@
 # Exalo
 
-![iPadOS](https://img.shields.io/badge/iPadOS-18.0+-blue.svg)
-![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)
-![SwiftUI](https://img.shields.io/badge/SwiftUI-Pure-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Swift Student Challenge](https://img.shields.io/badge/Swift%20Student%20Challenge-2026-red.svg)
+<p align="center">
+  <img src="https://img.shields.io/badge/iPadOS-18.0+-blue.svg">
+  <img src="https://img.shields.io/badge/Swift-6.0-orange.svg">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg">
+  <img src="https://img.shields.io/badge/Swift%20Student%20Challenge-2026-red.svg">
+</p>
 
 > A mindful, story-driven experience about understanding anxiety and finding peace through breathing.
 
@@ -13,7 +14,9 @@
 ## Preview
 
 ### Demo
-![App Demo](_Screenshots/demo.gif)
+<p align="center">
+  <img src="_Screenshots/demo.gif">
+</p>
 
 ### Screenshots
 | Home | Morning Scene | Drag Thoughts |
