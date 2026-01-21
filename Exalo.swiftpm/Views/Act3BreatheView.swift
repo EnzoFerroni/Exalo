@@ -1,411 +1,258 @@
 import SwiftUI
 import AVFoundation
 
-// Act 3 - Breathing exercise with microphone detection
 struct Act3BreatheView: View {
     @Bindable var gameState: GameState
     
-    @State private var showLight: Bool = false
-    @State private var breathingProgress: CGFloat = 0
-    @State private var isListening: Bool = false
-    @State private var breathCount: Int = 0
-    @State private var showInstruction: Bool = false
+    @State private var progress: CGFloat = 0
+    @State private var isListening = false
+    @State private var breathCount = 0
+    @State private var showInstruction = false
+    @State private var breatheIn = true
     @State private var circleScale: CGFloat = 1.0
     @State private var audioDetector: AudioBreathDetector?
-    @State private var showCompletion: Bool = false
-    
-    private let darkColor = Color(red: 0.08, green: 0.09, blue: 0.14)
-    private let lightBlue = Color(red: 0.4, green: 0.6, blue: 0.9)
+    @State private var showCompletion = false
+    @State private var orbPulse = false
+    @State private var breathTimer: Timer?
     
     private let requiredBreaths = 3
     
     var body: some View {
-        ZStack {
-            // Dark background
-            darkColor
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
+            
+            ZStack {
+                // Natural radial gradient
+                RadialGradient(
+                    stops: [
+                        .init(color: AppColors.calm, location: 0),
+                        .init(color: AppColors.calm.opacity(0.8), location: progress * 0.4),
+                        .init(color: AppColors.dark.opacity(1.0 - progress * 0.7), location: 0.5 + progress * 0.3),
+                        .init(color: AppColors.dark, location: 1)
+                    ],
+                    center: UnitPoint(x: 0.5, y: 0.2),
+                    startRadius: 0,
+                    endRadius: geo.size.height * (0.3 + progress * 0.7)
+                )
                 .ignoresSafeArea()
-            
-            // Light rays when breathing
-            if showLight {
-                LightRaysView(intensity: breathingProgress)
-            }
-            
-            // Floating calm bubbles
-            CalmBubblesView(progress: breathingProgress)
-            
-            VStack(spacing: 30) {
-                // Act title
-                Text("Act 3")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white.opacity(0.5))
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 12)
-                    .background(
-                        Capsule()
-                            .stroke(lightBlue.opacity(0.5), lineWidth: 2)
-                    )
-                    .padding(.top, 40)
+                .animation(.easeOut(duration: 1), value: progress)
                 
-                Spacer()
+                // Light orb guide (uses shared component from LightAppearsView)
+                LightOrbView(scale: 0.7, isPulsing: orbPulse, layout: layout)
+                    .position(x: geo.size.width * 0.2, y: geo.size.height * 0.15)
+                    .opacity(0.8)
                 
-                // Breathing circle with microphone icon
-                ZStack {
-                    // Outer glow
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [lightBlue.opacity(0.3), Color.clear],
-                                center: .center,
-                                startRadius: 60,
-                                endRadius: 120
-                            )
-                        )
-                        .frame(width: 240, height: 240)
-                        .scaleEffect(circleScale)
+                VStack(spacing: layout.spacing / 2) {
+                    Spacer()
                     
-                    // Main circle
-                    Circle()
-                        .stroke(lightBlue.opacity(0.6), lineWidth: 4)
-                        .frame(width: 150, height: 150)
-                        .scaleEffect(circleScale)
-                    
-                    // Progress ring
-                    Circle()
-                        .trim(from: 0, to: CGFloat(breathCount) / CGFloat(requiredBreaths))
-                        .stroke(lightBlue, lineWidth: 6)
-                        .frame(width: 150, height: 150)
-                        .rotationEffect(.degrees(-90))
-                    
-                    // Microphone icon
-                    Image(systemName: isListening ? "mic.fill" : "mic")
-                        .font(.system(size: 50))
-                        .foregroundColor(lightBlue)
-                        .scaleEffect(circleScale)
-                }
-                
-                // Instruction text
-                VStack(spacing: 12) {
-                    if showInstruction {
-                        Text("BREATHE...")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(lightBlue)
-                            .opacity(isListening ? 1 : 0.5)
-                        
-                        Text("Blow gently into the microphone")
-                            .font(.system(size: 14))
+                    // Breathing instruction
+                    if showInstruction && !showCompletion {
+                        VStack(spacing: layout.isIPad ? 16 : 12) {
+                            HStack(spacing: 12) {
+                                Image(systemName: breatheIn ? "arrow.down" : "arrow.up")
+                                    .font(.system(size: layout.isIPad ? 24 : 18, weight: .medium))
+                                Text(breatheIn ? "Breathe in..." : "Breathe out...")
+                                    .font(.system(size: layout.headline, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(AppColors.lightBlue)
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "nose")
+                                Text("→")
+                                Image(systemName: "mic.fill")
+                            }
+                            .font(.system(size: layout.isIPad ? 18 : 14))
                             .foregroundColor(.white.opacity(0.6))
+                            
+                            Text("Inhale through nose, exhale into microphone")
+                                .font(.system(size: layout.footnote, design: .rounded))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                        .padding(.bottom, 20)
+                    }
+                    
+                    // Main breathing circle
+                    ZStack {
+                        Circle()
+                            .fill(RadialGradient(colors: [AppColors.lightBlue.opacity(0.25), .clear], center: .center, startRadius: layout.isIPad ? 80 : 60, endRadius: layout.isIPad ? 180 : 140))
+                            .frame(width: layout.isIPad ? 360 : 280)
+                            .scaleEffect(circleScale)
                         
-                        // Breath counter
-                        HStack(spacing: 8) {
-                            ForEach(0..<requiredBreaths, id: \.self) { index in
-                                Circle()
-                                    .fill(index < breathCount ? lightBlue : lightBlue.opacity(0.3))
-                                    .frame(width: 12, height: 12)
+                        Circle()
+                            .stroke(AppColors.lightBlue.opacity(0.5), lineWidth: layout.isIPad ? 4 : 3)
+                            .frame(width: layout.isIPad ? 200 : 150)
+                            .scaleEffect(circleScale)
+                        
+                        Circle()
+                            .trim(from: 0, to: CGFloat(breathCount) / CGFloat(requiredBreaths))
+                            .stroke(AppColors.lightBlue, style: StrokeStyle(lineWidth: layout.isIPad ? 8 : 6, lineCap: .round))
+                            .frame(width: layout.isIPad ? 200 : 150)
+                            .rotationEffect(.degrees(-90))
+                        
+                        VStack(spacing: 8) {
+                            Image(systemName: isListening ? "mic.fill" : "mic")
+                                .font(.system(size: layout.isIPad ? 50 : 38))
+                                .foregroundColor(AppColors.lightBlue)
+                            
+                            if isListening {
+                                Text("Listening...")
+                                    .font(.system(size: layout.isIPad ? 14 : 11, design: .rounded))
+                                    .foregroundColor(AppColors.lightBlue.opacity(0.7))
                             }
                         }
-                        .padding(.top, 10)
+                        .scaleEffect(circleScale * 0.9)
                     }
+                    
+                    // Progress indicators
+                    HStack(spacing: layout.isIPad ? 16 : 12) {
+                        ForEach(0..<requiredBreaths, id: \.self) { i in
+                            Circle()
+                                .fill(i < breathCount ? AppColors.lightBlue : AppColors.lightBlue.opacity(0.3))
+                                .frame(width: layout.isIPad ? 18 : 14)
+                        }
+                    }
+                    .padding(.top, 20)
+                    
+                    Spacer()
+                    
+                    // Character
+                    CharacterView(
+                        expression: breathCount >= requiredBreaths ? .relieved : (breathCount > 0 ? .happy : .sad),
+                        size: layout.characterSmall * 0.85,
+                        showRelief: breathCount >= requiredBreaths
+                    )
+                    .padding(.bottom, layout.isIPad ? 60 : 40)
                 }
-                .frame(height: 100)
                 
-                Spacer()
-                
-                // Character at bottom
-                CharacterView(
-                    expression: breathCount >= requiredBreaths ? .relieved : (breathCount > 0 ? .happy : .sad),
-                    size: 80,
-                    showRelief: breathCount >= requiredBreaths
-                )
-                .padding(.bottom, 50)
-            }
-            
-            // Completion overlay
-            if showCompletion {
-                CompletionView(onContinue: {
-                    gameState.navigateTo(.ending)
-                })
-                .transition(.opacity)
+                // Completion overlay
+                if showCompletion {
+                    ZStack {
+                        AppColors.calm.ignoresSafeArea()
+                        
+                        VStack(spacing: layout.isIPad ? 30 : 24) {
+                            CharacterView(expression: .relieved, size: layout.characterSize, showRelief: true)
+                            
+                            Text("\"You did it.\"")
+                                .font(.system(size: layout.title3, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                            
+                            Button(action: {
+                                Haptics.success()
+                                gameState.navigateTo(.ending)
+                            }) {
+                                Text("Continue")
+                                    .font(.system(size: layout.body, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .frame(width: layout.buttonWidth, height: layout.buttonHeight)
+                                    .background(Capsule().fill(AppColors.lightBlue))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 16)
+                        }
+                    }
+                    .transition(.opacity)
+                }
             }
         }
-        .onAppear {
-            startBreathingExercise()
-        }
-        .onDisappear {
-            audioDetector?.stopListening()
+        .onAppear { startExercise() }
+        .onDisappear { 
+            audioDetector?.stop()
+            breathTimer?.invalidate()
         }
     }
     
-    private func startBreathingExercise() {
-        // Show light gradually
-        withAnimation(.easeIn(duration: 1.5)) {
-            showLight = true
-        }
+    private func startExercise() {
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) { orbPulse = true }
         
-        // Show instruction
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation {
-                showInstruction = true
-            }
-            
-            // Start breathing animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation { showInstruction = true }
             startBreathingAnimation()
-            
-            // Start audio detection
-            setupAudioDetection()
+            audioDetector = AudioBreathDetector { handleBreath() }
+            audioDetector?.start()
+            isListening = true
         }
     }
     
     private func startBreathingAnimation() {
-        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-            circleScale = 1.15
-        }
-    }
-    
-    private func setupAudioDetection() {
-        audioDetector = AudioBreathDetector { detected in
-            if detected {
-                handleBreathDetected()
+        withAnimation(.easeInOut(duration: 3.8)) { circleScale = 1.2; breatheIn = false }
+        
+        breathTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { _ in
+            Task { @MainActor in
+                withAnimation(.easeInOut(duration: 3.8)) {
+                    breatheIn.toggle()
+                    circleScale = breatheIn ? 1.0 : 1.2
+                }
             }
         }
-        audioDetector?.startListening()
-        isListening = true
     }
     
-    private func handleBreathDetected() {
+    private func handleBreath() {
         guard breathCount < requiredBreaths else { return }
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
             breathCount += 1
-            breathingProgress = CGFloat(breathCount) / CGFloat(requiredBreaths)
+            progress = CGFloat(breathCount) / CGFloat(requiredBreaths)
         }
+        Haptics.success()
         
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-        
-        // Check completion
         if breathCount >= requiredBreaths {
-            completeExercise()
-        }
-    }
-    
-    private func completeExercise() {
-        audioDetector?.stopListening()
-        isListening = false
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.easeIn(duration: 0.5)) {
-                showCompletion = true
-            }
-        }
-    }
-}
-
-// Light rays effect
-struct LightRaysView: View {
-    var intensity: CGFloat
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Central light
-                RadialGradient(
-                    colors: [
-                        Color.white.opacity(0.1 * Double(intensity)),
-                        Color.clear
-                    ],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: geometry.size.width * 0.6
-                )
-                
-                // Light rays
-                ForEach(0..<8, id: \.self) { index in
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.05), Color.clear],
-                                startPoint: .center,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 20, height: geometry.size.height * 0.4)
-                        .rotationEffect(.degrees(Double(index) * 45))
-                        .opacity(Double(intensity) * 0.5)
-                }
-            }
-            .position(x: geometry.size.width / 2, y: geometry.size.height * 0.4)
-        }
-    }
-}
-
-// Calm floating bubbles
-struct CalmBubblesView: View {
-    var progress: CGFloat
-    
-    @State private var bubbles: [CalmBubble] = []
-    
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                ForEach(bubbles) { bubble in
-                    Circle()
-                        .fill(Color(red: 0.5, green: 0.7, blue: 0.9).opacity(bubble.opacity))
-                        .frame(width: bubble.size, height: bubble.size)
-                        .position(bubble.position)
-                }
-            }
-        }
-        .onAppear {
-            generateBubbles()
-        }
-        .onChange(of: progress) { _, newValue in
-            if newValue > 0 {
-                addBubble()
-            }
-        }
-    }
-    
-    private func generateBubbles() {
-        for _ in 0..<5 {
-            addBubble()
-        }
-    }
-    
-    private func addBubble() {
-        let screenWidth = UIScreen.main.bounds.width
-        let screenHeight = UIScreen.main.bounds.height
-        
-        let bubble = CalmBubble(
-            size: CGFloat.random(in: 20...60),
-            position: CGPoint(
-                x: CGFloat.random(in: 0...screenWidth),
-                y: CGFloat.random(in: 0...screenHeight)
-            ),
-            opacity: Double.random(in: 0.1...0.3)
-        )
-        
-        withAnimation(.easeInOut(duration: 2.0)) {
-            bubbles.append(bubble)
-        }
-        
-        if bubbles.count > 12 {
-            bubbles.removeFirst()
-        }
-    }
-}
-
-struct CalmBubble: Identifiable {
-    let id = UUID()
-    var size: CGFloat
-    var position: CGPoint
-    var opacity: Double
-}
-
-// Completion view
-struct CompletionView: View {
-    var onContinue: () -> Void
-    
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-                .ignoresSafeArea()
+            audioDetector?.stop()
+            breathTimer?.invalidate()
+            isListening = false
             
-            VStack(spacing: 24) {
-                CharacterView(expression: .relieved, size: 100, showRelief: true)
-                
-                Text("\"Sometimes, we just need to stop\nand breathe.\"")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                
-                Button(action: onContinue) {
-                    Text("Done")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 50)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .fill(Color.white)
-                        )
-                }
-                .padding(.top, 20)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                withAnimation(.easeIn(duration: 0.5)) { showCompletion = true }
             }
-            .padding(40)
         }
     }
 }
 
-// Audio breath detector using AVFoundation
+// MARK: - Audio Detector
 @MainActor
-final class AudioBreathDetector: ObservableObject {
-    private var audioRecorder: AVAudioRecorder?
+final class AudioBreathDetector {
+    private var recorder: AVAudioRecorder?
     private var timer: Timer?
-    private var onBreathDetected: @MainActor (Bool) -> Void
-    private var lastBreathTime: Date = Date()
-    private let minimumBreathInterval: TimeInterval = 1.5
+    private var onDetected: @MainActor () -> Void
+    private var lastTime = Date()
     
-    init(onBreathDetected: @escaping @MainActor (Bool) -> Void) {
-        self.onBreathDetected = onBreathDetected
-    }
+    init(_ onDetected: @escaping @MainActor () -> Void) { self.onDetected = onDetected }
     
-    func startListening() {
-        let audioSession = AVAudioSession.sharedInstance()
-        
+    func start() {
+        let session = AVAudioSession.sharedInstance()
         do {
-            try audioSession.setCategory(.playAndRecord, mode: .default)
-            try audioSession.setActive(true)
-            
+            try session.setCategory(.playAndRecord, mode: .default)
+            try session.setActive(true)
             let settings: [String: Any] = [
                 AVFormatIDKey: Int(kAudioFormatAppleLossless),
                 AVSampleRateKey: 44100.0,
                 AVNumberOfChannelsKey: 1,
                 AVEncoderAudioQualityKey: AVAudioQuality.min.rawValue
             ]
-            
-            let url = URL(fileURLWithPath: "/dev/null")
-            audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-            audioRecorder?.isMeteringEnabled = true
-            audioRecorder?.record()
-            
-            // Check audio levels periodically
+            recorder = try AVAudioRecorder(url: URL(fileURLWithPath: "/dev/null"), settings: settings)
+            recorder?.isMeteringEnabled = true
+            recorder?.record()
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    self?.checkAudioLevel()
-                }
+                Task { @MainActor in self?.check() }
             }
-        } catch {
-            print("Audio setup failed: \(error)")
-        }
+        } catch { print("Audio error: \(error)") }
     }
     
-    func stopListening() {
+    func stop() {
         timer?.invalidate()
         timer = nil
-        audioRecorder?.stop()
-        audioRecorder = nil
+        recorder?.stop()
+        recorder = nil
     }
     
-    private func checkAudioLevel() {
-        audioRecorder?.updateMeters()
-        
-        guard let level = audioRecorder?.averagePower(forChannel: 0) else { return }
-        
-        // Breath detected if level is above threshold
-        // -20 dB is a reasonable threshold for breath/blow detection
-        let threshold: Float = -20
-        
-        if level > threshold {
-            let now = Date()
-            if now.timeIntervalSince(lastBreathTime) >= minimumBreathInterval {
-                lastBreathTime = now
-                onBreathDetected(true)
-            }
+    private func check() {
+        recorder?.updateMeters()
+        guard let level = recorder?.averagePower(forChannel: 0), level > -20 else { return }
+        let now = Date()
+        if now.timeIntervalSince(lastTime) >= 2.0 {
+            lastTime = now
+            onDetected()
         }
     }
 }
 
-#Preview {
-    Act3BreatheView(gameState: GameState())
-}
+#Preview { Act3BreatheView(gameState: GameState()) }

@@ -1,162 +1,128 @@
 import SwiftUI
 
-// Ending screen - calm conclusion with message
 struct EndingView: View {
     @Bindable var gameState: GameState
     
-    @State private var showCharacter: Bool = false
-    @State private var showMessage: Bool = false
-    @State private var showButton: Bool = false
-    @State private var backgroundOpacity: Double = 0
+    @State private var step = 0
+    @State private var textOpacity = 0.0
+    @State private var canTap = false
+    @State private var isTransitioning = false
     
-    private let calmBackground = Color(red: 0.85, green: 0.92, blue: 0.95)
+    // Messages including anxiety information
+    private let messages: [(main: String, sub: String, isInfo: Bool)] = [
+        ("Sometimes, we just need to stop.", "And breathe.", false),
+        ("You are not alone.", "1 in 4 people experience anxiety.", true),
+        ("It's okay to feel overwhelmed.", "What matters is how we respond.", true),
+        ("Breathing helps regulate your nervous system.", "It's a simple but powerful tool.", true),
+        ("Remember:", "It's okay to slow down.", false),
+        ("Thank you for playing.", "Take care of yourself. 💙", false)
+    ]
     
-    var body: some View {
-        ZStack {
-            // Calm gradient background
-            LinearGradient(
-                colors: [
-                    calmBackground,
-                    Color(red: 0.9, green: 0.95, blue: 0.98)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            .opacity(backgroundOpacity)
-            
-            // Soft floating circles
-            FloatingCirclesEndingView()
-                .opacity(backgroundOpacity)
-            
-            VStack(spacing: 40) {
-                Spacer()
-                
-                // Character feeling relieved
-                if showCharacter {
-                    CharacterView(
-                        expression: .relieved,
-                        size: 120,
-                        showRelief: true
-                    )
-                    .transition(.scale.combined(with: .opacity))
-                }
-                
-                // Final message
-                if showMessage {
-                    VStack(spacing: 16) {
-                        Text("\"Sometimes, we just need to stop\nand breathe.\"")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.black.opacity(0.8))
-                            .multilineTextAlignment(.center)
-                            .lineSpacing(4)
-                        
-                        Text("Remember: it's okay to slow down.")
-                            .font(.system(size: 14))
-                            .foregroundColor(.black.opacity(0.5))
-                            .padding(.top, 8)
-                    }
-                    .transition(.opacity)
-                }
-                
-                Spacer()
-                
-                // Done button
-                if showButton {
-                    Button(action: {
-                        gameState.resetGame()
-                        gameState.navigateTo(.home)
-                    }) {
-                        Text("Done")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 50)
-                            .padding(.vertical, 14)
-                            .background(
-                                Capsule()
-                                    .fill(Color.black.opacity(0.7))
-                            )
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .padding(.bottom, 60)
-                }
-            }
-            .padding()
-        }
-        .onAppear {
-            startEndingSequence()
-        }
-    }
-    
-    private func startEndingSequence() {
-        // Fade in background
-        withAnimation(.easeIn(duration: 1.0)) {
-            backgroundOpacity = 1
-        }
-        
-        // Show character
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
-                showCharacter = true
-            }
-        }
-        
-        // Show message
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation(.easeIn(duration: 0.6)) {
-                showMessage = true
-            }
-        }
-        
-        // Show button
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation(.easeIn(duration: 0.4)) {
-                showButton = true
-            }
-        }
-    }
-}
-
-// Soft floating circles for ending
-struct FloatingCirclesEndingView: View {
-    @State private var animate: Bool = false
+    private var safeStep: Int { min(step, messages.count - 1) }
+    private var currentMessage: (main: String, sub: String, isInfo: Bool) { messages[safeStep] }
     
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
+            
             ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.5))
-                    .frame(width: 150, height: 150)
-                    .position(x: geometry.size.width * 0.2, y: geometry.size.height * 0.3)
-                    .offset(y: animate ? -10 : 10)
+                AppColors.calm.ignoresSafeArea()
                 
-                Circle()
-                    .fill(Color(red: 0.8, green: 0.9, blue: 0.95).opacity(0.6))
-                    .frame(width: 100, height: 100)
-                    .position(x: geometry.size.width * 0.75, y: geometry.size.height * 0.25)
-                    .offset(y: animate ? 10 : -10)
+                // Subtle floating circles
+                FloatingCirclesBackground()
+                    .opacity(0.3)
                 
-                Circle()
-                    .fill(Color(red: 0.9, green: 0.85, blue: 0.9).opacity(0.4))
-                    .frame(width: 80, height: 80)
-                    .position(x: geometry.size.width * 0.6, y: geometry.size.height * 0.7)
-                    .offset(y: animate ? -8 : 8)
-                
-                Circle()
-                    .fill(Color.white.opacity(0.4))
-                    .frame(width: 120, height: 120)
-                    .position(x: geometry.size.width * 0.15, y: geometry.size.height * 0.75)
-                    .offset(y: animate ? 12 : -12)
+                VStack(spacing: layout.spacing) {
+                    Spacer()
+                    
+                    // Character
+                    CharacterView(expression: .relieved, size: layout.characterSize, showRelief: true)
+                    
+                    // Message card
+                    VStack(spacing: layout.isIPad ? 16 : 12) {
+                        if currentMessage.isInfo {
+                            // Info badge
+                            HStack(spacing: 6) {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.system(size: layout.isIPad ? 16 : 14))
+                                Text("Did you know?")
+                                    .font(.system(size: layout.footnote, weight: .medium, design: .rounded))
+                            }
+                            .foregroundColor(AppColors.lightBlue)
+                            .padding(.bottom, 4)
+                        }
+                        
+                        Text(currentMessage.main)
+                            .font(.system(size: layout.title2, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        if !currentMessage.sub.isEmpty {
+                            Text(currentMessage.sub)
+                                .font(.system(size: layout.body, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                    }
+                    .opacity(textOpacity)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, layout.isIPad ? 40 : 30)
+                    .padding(.vertical, layout.isIPad ? 30 : 24)
+                    .frame(maxWidth: layout.maxContentWidth)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.white.opacity(currentMessage.isInfo ? 0.9 : 0.7))
+                            .shadow(color: .black.opacity(0.05), radius: 10)
+                    )
+                    .padding(.horizontal, layout.padding)
+                    
+                    Spacer()
+                    
+                    // Navigation
+                    if step >= messages.count - 1 && canTap {
+                        Button(action: {
+                            Haptics.success()
+                            gameState.resetGame()
+                            gameState.navigateTo(.home)
+                        }) {
+                            Text("Home")
+                                .font(.system(size: layout.body, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: layout.buttonWidth, height: layout.buttonHeight)
+                                .background(Capsule().fill(Color.black.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, layout.isIPad ? 80 : 60)
+                    } else {
+                        TapIndicator(isVisible: canTap && !isTransitioning, layout: layout)
+                            .padding(.bottom, layout.isIPad ? 60 : 40)
+                    }
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { advance() }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
-                animate = true
-            }
+        .onAppear { animateStep() }
+    }
+    
+    private func animateStep() {
+        textOpacity = 0
+        canTap = false
+        
+        withAnimation(.easeIn(duration: 0.5)) { textOpacity = 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { canTap = true }
+    }
+    
+    private func advance() {
+        guard canTap, !isTransitioning, step < messages.count - 1 else { return }
+        isTransitioning = true
+        Haptics.light()
+        
+        withAnimation(.easeOut(duration: 0.2)) { textOpacity = 0 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            step += 1
+            isTransitioning = false
+            animateStep()
         }
     }
 }
 
-#Preview {
-    EndingView(gameState: GameState())
-}
+#Preview { EndingView(gameState: GameState()) }

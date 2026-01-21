@@ -1,107 +1,82 @@
 import SwiftUI
 
-// Home screen with title, character and navigation buttons
 struct HomeView: View {
     @Bindable var gameState: GameState
     
-    @State private var titleAppeared: Bool = false
-    @State private var characterAppeared: Bool = false
-    @State private var buttonsAppeared: Bool = false
-    
-    private let backgroundColor = Color(red: 0.98, green: 0.95, blue: 0.8)
-    private let accentYellow = Color(red: 1.0, green: 0.9, blue: 0.2)
+    @State private var showTitle = false
+    @State private var showCharacter = false
+    @State private var showButtons = false
     
     var body: some View {
-        ZStack {
-            // Background
-            backgroundColor
-                .ignoresSafeArea()
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
             
-            FloatingCirclesBackground()
-            
-            VStack(spacing: 40) {
-                Spacer()
+            ZStack {
+                AppColors.background.ignoresSafeArea()
+                FloatingCirclesBackground()
                 
-                // Title pill
-                Text("EXALO")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 30)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(accentYellow)
-                    )
-                    .opacity(titleAppeared ? 1 : 0)
-                    .offset(y: titleAppeared ? 0 : -20)
-                
-                Spacer()
-                
-                // Character
-                CharacterView(expression: .normal, size: 120)
-                    .opacity(characterAppeared ? 1 : 0)
-                    .scaleEffect(characterAppeared ? 1 : 0.8)
-                
-                Spacer()
-                Spacer()
-                
-                // Navigation buttons
-                VStack(spacing: 16) {
-                    Button(action: {
-                        gameState.navigateTo(.prologue)
-                    }) {
-                        Text("Start")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: 200)
-                            .padding(.vertical, 16)
-                            .background(
-                                Capsule()
-                                    .fill(Color.black.opacity(0.85))
-                            )
-                    }
+                VStack(spacing: layout.spacing) {
+                    Spacer()
                     
-                    Button(action: {
-                        gameState.navigateTo(.about)
-                    }) {
-                        Text("About")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: 200)
-                            .padding(.vertical, 16)
-                            .background(
-                                Capsule()
-                                    .fill(Color.black.opacity(0.85))
-                            )
+                    // Title pill - bright yellow background
+                    Text("EXALO")
+                        .font(.system(size: layout.title3, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.textPrimary)
+                        .padding(.horizontal, layout.isIPad ? 40 : 30)
+                        .padding(.vertical, layout.isIPad ? 14 : 10)
+                        .background(Capsule().fill(AppColors.accent))
+                        .opacity(showTitle ? 1 : 0)
+                        .offset(y: showTitle ? 0 : -20)
+                    
+                    Spacer()
+                    
+                    CharacterView(expression: .happy, size: layout.characterSize)
+                        .opacity(showCharacter ? 1 : 0)
+                        .scaleEffect(showCharacter ? 1 : 0.8)
+                    
+                    Spacer()
+                    
+                    // Buttons
+                    VStack(spacing: layout.isIPad ? 20 : 16) {
+                        Button(action: {
+                            Haptics.light()
+                            gameState.navigateTo(.prologue)
+                        }) {
+                            Text("Start")
+                                .font(.system(size: layout.body, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: layout.buttonWidth, height: layout.buttonHeight)
+                                .background(Capsule().fill(Color.black.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button(action: {
+                            Haptics.light()
+                            gameState.navigateTo(.about)
+                        }) {
+                            Text("About")
+                                .font(.system(size: layout.body, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: layout.buttonWidth, height: layout.buttonHeight)
+                                .background(Capsule().fill(Color.black.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .opacity(showButtons ? 1 : 0)
+                    .offset(y: showButtons ? 0 : 30)
+                    
+                    Spacer().frame(height: layout.isIPad ? 80 : 60)
                 }
-                .opacity(buttonsAppeared ? 1 : 0)
-                .offset(y: buttonsAppeared ? 0 : 30)
-                
-                Spacer()
             }
-            .padding()
         }
-        .onAppear {
-            animateEntrance()
-        }
+        .onAppear { animate() }
     }
     
-    private func animateEntrance() {
-        withAnimation(.easeOut(duration: 0.6)) {
-            titleAppeared = true
-        }
-        
-        withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
-            characterAppeared = true
-        }
-        
-        withAnimation(.easeOut(duration: 0.6).delay(0.4)) {
-            buttonsAppeared = true
-        }
+    private func animate() {
+        withAnimation(.easeOut(duration: 0.5)) { showTitle = true }
+        withAnimation(.easeOut(duration: 0.5).delay(0.15)) { showCharacter = true }
+        withAnimation(.easeOut(duration: 0.5).delay(0.3)) { showButtons = true }
     }
 }
 
-#Preview {
-    HomeView(gameState: GameState())
-}
+#Preview { HomeView(gameState: GameState()) }

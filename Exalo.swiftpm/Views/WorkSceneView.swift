@@ -1,223 +1,223 @@
 import SwiftUI
 
-// Work Scene - Pressure intensifies, tasks multiply faster
 struct WorkSceneView: View {
     @Bindable var gameState: GameState
     
-    @State private var currentPhase: Int = 0
-    @State private var tasks: [WorkTask] = []
-    @State private var completedCount: Int = 0
-    @State private var showCharacter: Bool = true
-    @State private var characterExpression: CharacterExpression = .worried
-    @State private var characterScale: CGFloat = 1.0
-    @State private var showInstruction: Bool = false
-    @State private var textOpacity: Double = 1
-    @State private var spawnTimer: Timer?
+    @State private var phase = 0 // 0: intro, 1: interactive, 2: outro
+    @State private var textOpacity = 0.0
+    @State private var canTap = false
+    @State private var isTransitioning = false
+    @State private var thoughts: [DraggableThought] = []
+    @State private var showHint = true
+    @State private var draggedCount = 0
     
-    private let stressedBackground = Color(red: 0.95, green: 0.90, blue: 0.78)
-    
-    private let thoughts: [String] = [
-        "\"I can do this. I have to.\"",
-        "\"Almost there... just a little more.\"",
-        "\"Why does it never end?\"",
-        "\"I'm trying so hard...\"",
-        "\"It's never enough, is it?\""
-    ]
+    private let thoughtTexts = ["Failure", "Not enough", "Disappointment", "Imperfect", "Behind", "Worthless"]
     
     var body: some View {
-        ZStack {
-            // Stressed background
-            stressedBackground
-                .ignoresSafeArea()
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
             
-            // Floating work tasks to tap
-            ForEach(tasks) { task in
-                WorkTaskView(task: task) {
-                    completeTask(task)
+            ZStack {
+                // Stressed background
+                Color(red: 0.95, green: 0.88, blue: 0.78).ignoresSafeArea()
+                
+                // Draggable thoughts - behind character
+                ForEach($thoughts) { $thought in
+                    DraggableThoughtView(
+                        thought: $thought,
+                        layout: layout,
+                        onDragEnded: { handleDragEnded(thought: thought, in: geo) }
+                    )
                 }
-            }
-            
-            VStack {
-                // Phase text at top
-                Text(thoughts[min(currentPhase, thoughts.count - 1)])
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.black.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .opacity(textOpacity)
-                    .padding(.top, 60)
-                    .padding(.horizontal, 40)
+                .zIndex(0)
                 
-                Spacer()
-                
-                // Character in center, shrinking under pressure
+                // Character at center-top area - in front of thoughts
                 CharacterView(
-                    expression: characterExpression,
-                    size: 80,
+                    expression: draggedCount > 2 ? .overwhelmed : .worried,
+                    size: layout.characterSmall,
                     showWorryLines: true,
-                    showSweatDrop: currentPhase >= 2
+                    showSweatDrop: draggedCount > 1
                 )
-                .scaleEffect(characterScale)
+                .position(x: geo.size.width / 2, y: geo.size.height * 0.35)
+                .zIndex(1)
                 
-                Spacer()
-                
-                // Instruction
-                if showInstruction {
-                    VStack(spacing: 8) {
-                        Text("Tap the tasks to complete them")
-                            .font(.system(size: 14))
-                            .foregroundColor(.black.opacity(0.5))
+                // Intro/Outro text - at bottom, below character
+                if phase != 1 {
+                    VStack {
+                        Spacer()
                         
-                        Text("Completed: \(completedCount)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.black.opacity(0.4))
+                        NarrativeText(
+                            main: phase == 0 ? "The thoughts keep growing." : "No matter how hard you try...",
+                            sub: phase == 0 ? "Try to push them away." : "They always come back.",
+                            layout: layout
+                        )
+                        .opacity(textOpacity)
+                        .padding(.bottom, layout.isIPad ? 30 : 20)
+                        
+                        TapIndicator(isVisible: canTap && !isTransitioning, layout: layout)
+                            .padding(.bottom, layout.isIPad ? 60 : 40)
                     }
-                    .padding(.bottom, 40)
+                    .zIndex(2)
+                    .allowsHitTesting(false)
+                }
+                
+                // Hint for interactive phase - at bottom
+                if phase == 1 && showHint {
+                    VStack {
+                        Spacer()
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: "hand.draw")
+                                .font(.system(size: layout.isIPad ? 24 : 18))
+                            Text("Drag thoughts away from Exalo")
+                                .font(.system(size: layout.footnote, design: .rounded))
+                        }
+                        .foregroundColor(AppColors.textSecondary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.9))
+                                .shadow(color: .black.opacity(0.1), radius: 4)
+                        )
+                        .padding(.bottom, layout.isIPad ? 80 : 60)
+                    }
+                    .transition(.opacity)
+                    .zIndex(2)
+                    .allowsHitTesting(false)
                 }
             }
-        }
-        .onAppear {
-            startWorkScene()
-        }
-        .onDisappear {
-            spawnTimer?.invalidate()
+            .contentShape(Rectangle())
+            .onTapGesture { advance(in: geo) }
+            .onAppear { startScene(in: geo, layout: layout) }
         }
     }
     
-    private func startWorkScene() {
-        showInstruction = true
-        
-        // Start spawning tasks
-        spawnInitialTasks()
-        
-        // Tasks spawn faster over time
-        spawnTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
-            spawnTask()
-            checkPhaseProgress()
-        }
-        
-        // Auto-advance after enough time
-        DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
-            transitionToNext()
-        }
+    private func startScene(in geo: GeometryProxy, layout: AppLayout) {
+        withAnimation(.easeIn(duration: 0.5)) { textOpacity = 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { canTap = true }
     }
     
-    private func spawnInitialTasks() {
-        for i in 0..<4 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.3) {
-                spawnTask()
-            }
-        }
-    }
-    
-    private func spawnTask() {
-        let screenWidth = UIScreen.main.bounds.width
-        let screenHeight = UIScreen.main.bounds.height
+    private func advance(in geo: GeometryProxy) {
+        guard canTap, !isTransitioning else { return }
         
-        let task = WorkTask(
-            position: CGPoint(
-                x: CGFloat.random(in: 60...(screenWidth - 60)),
-                y: CGFloat.random(in: 120...(screenHeight - 180))
-            ),
-            color: [Color.blue.opacity(0.6), Color.pink.opacity(0.6), Color.orange.opacity(0.5)].randomElement()!
-        )
-        
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-            tasks.append(task)
-        }
-        
-        // Increase pressure feeling
-        if tasks.count > 6 {
-            withAnimation(.easeIn(duration: 0.3)) {
-                characterScale = max(0.7, characterScale - 0.03)
-                characterExpression = tasks.count > 10 ? .overwhelmed : .worried
-            }
-        }
-        
-        gameState.increaseStress(by: 0.05)
-    }
-    
-    private func completeTask(_ task: WorkTask) {
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
-            tasks.removeAll { $0.id == task.id }
-        }
-        
-        completedCount += 1
-        
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-        
-        // Spawn more tasks faster as you complete them (endless cycle feeling)
-        if completedCount % 2 == 0 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                spawnTask()
-                spawnTask()
-            }
-        }
-    }
-    
-    private func checkPhaseProgress() {
-        let newPhase = min(completedCount / 3, thoughts.count - 1)
-        if newPhase != currentPhase {
-            withAnimation(.easeOut(duration: 0.2)) {
-                textOpacity = 0
-            }
+        if phase == 0 {
+            // Move to interactive phase
+            isTransitioning = true
+            Haptics.medium()
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                currentPhase = newPhase
+            withAnimation(.easeOut(duration: 0.3)) { textOpacity = 0 }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                phase = 1
+                spawnThoughts(in: geo)
+                isTransitioning = false
+            }
+        } else if phase == 2 {
+            // Move to next scene
+            Haptics.light()
+            gameState.navigateTo(.innerThoughts)
+        }
+    }
+    
+    private func spawnThoughts(in geo: GeometryProxy) {
+        let center = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.35)
+        
+        for (i, text) in thoughtTexts.enumerated() {
+            let angle = (Double(i) / Double(thoughtTexts.count)) * 2 * .pi
+            let radius: CGFloat = geo.size.width < 500 ? 100 : 150
+            
+            let thought = DraggableThought(
+                text: text,
+                position: CGPoint(
+                    x: center.x + cos(angle) * radius,
+                    y: center.y + sin(angle) * radius
+                ),
+                homePosition: CGPoint(
+                    x: center.x + cos(angle) * radius,
+                    y: center.y + sin(angle) * radius
+                )
+            )
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.15) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                    thoughts.append(thought)
+                }
+                Haptics.light()
+            }
+        }
+    }
+    
+    private func handleDragEnded(thought: DraggableThought, in geo: GeometryProxy) {
+        draggedCount += 1
+        showHint = false
+        Haptics.medium()
+        
+        // Thought returns with resistance
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if let index = thoughts.firstIndex(where: { $0.id == thought.id }) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.5)) {
+                    thoughts[index].position = thoughts[index].homePosition
+                }
+                Haptics.warning()
+            }
+        }
+        
+        // After enough attempts, move to outro
+        if draggedCount >= 4 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 withAnimation(.easeIn(duration: 0.3)) {
+                    phase = 2
                     textOpacity = 1
                 }
+                canTap = true
             }
         }
     }
-    
-    private func transitionToNext() {
-        spawnTimer?.invalidate()
-        gameState.navigateTo(.innerThoughts)
-    }
 }
 
-// Work task model
-struct WorkTask: Identifiable {
+// MARK: - Draggable Thought Model
+struct DraggableThought: Identifiable {
     let id = UUID()
+    var text: String
     var position: CGPoint
-    var color: Color
+    var homePosition: CGPoint
 }
 
-// Tappable work task view
-struct WorkTaskView: View {
-    var task: WorkTask
-    var onTap: () -> Void
+// MARK: - Draggable Thought View
+struct DraggableThoughtView: View {
+    @Binding var thought: DraggableThought
+    var layout: AppLayout
+    var onDragEnded: () -> Void
     
-    @State private var scale: CGFloat = 0
-    @State private var opacity: Double = 0
+    @State private var isDragging = false
     
     var body: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(task.color)
-            .frame(width: 50, height: 50)
-            .scaleEffect(scale)
-            .opacity(opacity)
-            .position(task.position)
-            .onTapGesture {
-                withAnimation(.easeOut(duration: 0.15)) {
-                    scale = 1.3
-                    opacity = 0
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    onTap()
-                }
-            }
-            .onAppear {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    scale = 1
-                    opacity = 1
-                }
-            }
+        Text(thought.text)
+            .font(.system(size: layout.isIPad ? 15 : 12, weight: .semibold, design: .rounded))
+            .foregroundColor(.white)
+            .padding(.horizontal, layout.isIPad ? 16 : 12)
+            .padding(.vertical, layout.isIPad ? 10 : 8)
+            .background(
+                Capsule()
+                    .fill(Color.red.opacity(isDragging ? 0.9 : 0.7))
+                    .shadow(color: .red.opacity(0.3), radius: isDragging ? 8 : 4)
+            )
+            .scaleEffect(isDragging ? 1.1 : 1.0)
+            .position(thought.position)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        isDragging = true
+                        thought.position = value.location
+                    }
+                    .onEnded { _ in
+                        isDragging = false
+                        onDragEnded()
+                    }
+            )
+            .animation(.spring(response: 0.3), value: isDragging)
     }
 }
 
-#Preview {
-    WorkSceneView(gameState: GameState())
-}
+#Preview { WorkSceneView(gameState: GameState()) }

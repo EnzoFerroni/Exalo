@@ -53,5 +53,6 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.4), value: gameState.currentScreen)
+        .preferredColorScheme(.light) // Force light mode - app uses custom light backgrounds
     }
 }

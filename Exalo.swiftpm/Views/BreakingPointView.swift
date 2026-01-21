@@ -1,150 +1,86 @@
 import SwiftUI
 
-// Breaking Point - The moment everything becomes too much
 struct BreakingPointView: View {
     @Bindable var gameState: GameState
     
-    @State private var darknessOpacity: Double = 0
-    @State private var characterScale: CGFloat = 1.0
-    @State private var heartbeatScale: CGFloat = 1.0
-    @State private var showText: Bool = false
-    @State private var currentTextIndex: Int = 0
-    @State private var textOpacity: Double = 0
-    @State private var shakeOffset: CGFloat = 0
-    @State private var showHeartbeat: Bool = false
+    @State private var darkness = 0.0
+    @State private var scale: CGFloat = 1.0
+    @State private var heartScale: CGFloat = 1.0
+    @State private var textIndex = 0
+    @State private var textOpacity = 0.0
+    @State private var shake: CGFloat = 0
     
-    private let lightBackground = Color(red: 0.94, green: 0.90, blue: 0.82)
-    private let darkBackground = Color(red: 0.08, green: 0.09, blue: 0.14)
-    
-    private let breakingTexts: [String] = [
-        "\"I just need to...\"",
-        "\"I just...\"",
-        "\"I...\"",
-        "\"...\""
-    ]
+    private let texts = ["\"I just need to...\"", "\"I just...\"", "\"...\""]
+    private var safeText: String { texts[min(textIndex, texts.count - 1)] }
     
     var body: some View {
-        ZStack {
-            // Background transitioning from light to dark
-            lightBackground
-                .ignoresSafeArea()
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
             
-            darkBackground
-                .ignoresSafeArea()
-                .opacity(darknessOpacity)
-            
-            // Heartbeat circle
-            if showHeartbeat {
+            ZStack {
+                AppColors.background.ignoresSafeArea()
+                AppColors.dark.ignoresSafeArea().opacity(darkness)
+                
+                // Heartbeat circle
                 Circle()
-                    .stroke(Color.red.opacity(0.3), lineWidth: 3)
-                    .frame(width: 200, height: 200)
-                    .scaleEffect(heartbeatScale)
-            }
-            
-            VStack(spacing: 30) {
-                Spacer()
+                    .stroke(Color.red.opacity(0.3), lineWidth: layout.isIPad ? 4 : 3)
+                    .frame(width: layout.isIPad ? 280 : 200)
+                    .scaleEffect(heartScale)
+                    .position(x: geo.size.width / 2, y: layout.characterY)
                 
-                // Character shrinking and shaking
-                CharacterView(
-                    expression: .overwhelmed,
-                    size: 90,
-                    showWorryLines: true,
-                    showSweatDrop: true
-                )
-                .scaleEffect(characterScale)
-                .offset(x: shakeOffset)
+                // Character - stays overwhelmed
+                CharacterView(expression: .overwhelmed, size: layout.characterSmall, showWorryLines: true, showSweatDrop: true)
+                    .scaleEffect(scale)
+                    .offset(x: shake)
+                    .position(x: geo.size.width / 2, y: layout.characterY)
                 
-                // Breaking text
-                if showText {
-                    Text(breakingTexts[currentTextIndex])
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundColor(darknessOpacity > 0.5 ? .white.opacity(0.7) : .black.opacity(0.7))
-                        .opacity(textOpacity)
-                        .multilineTextAlignment(.center)
-                }
-                
-                Spacer()
+                // Text
+                Text(safeText)
+                    .font(.system(size: layout.headline, weight: .medium, design: .rounded))
+                    .foregroundColor(darkness > 0.5 ? .white.opacity(0.7) : AppColors.textPrimary.opacity(0.7))
+                    .opacity(textOpacity)
+                    .position(x: geo.size.width / 2, y: layout.textY)
             }
         }
-        .onAppear {
-            startBreakingSequence()
-        }
+        .onAppear { startSequence() }
     }
     
-    private func startBreakingSequence() {
-        // Phase 1: Show heartbeat
-        showHeartbeat = true
-        startHeartbeat()
+    private func startSequence() {
+        // Heartbeat animation + haptic
+        withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) { heartScale = 1.15 }
+        withAnimation(.linear(duration: 0.05).repeatForever(autoreverses: true)) { shake = 2 }
         
-        // Phase 2: Start shaking
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            startShaking()
-        }
-        
-        // Phase 3: Show texts with increasing darkness
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            showText = true
-            showBreakingTexts()
-        }
-    }
-    
-    private func startHeartbeat() {
-        withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
-            heartbeatScale = 1.15
+        // Haptic heartbeat - strong pulsing
+        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+            if darkness >= 0.9 { timer.invalidate(); return }
+            Haptics.heavy()
         }
         
-        // Speed up heartbeat over time
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation(.easeInOut(duration: 0.25).repeatForever(autoreverses: true)) {
-                heartbeatScale = 1.2
-            }
+        // Haptic shake - continuous vibration
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+            if darkness >= 0.9 { timer.invalidate(); return }
+            Haptics.medium()
         }
-    }
-    
-    private func startShaking() {
-        withAnimation(.linear(duration: 0.05).repeatForever(autoreverses: true)) {
-            shakeOffset = 2
-        }
-    }
-    
-    private func showBreakingTexts() {
-        let interval: Double = 1.5
         
-        for i in 0..<breakingTexts.count {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * interval) {
-                // Fade out previous
-                withAnimation(.easeOut(duration: 0.2)) {
-                    textOpacity = 0
-                }
-                
+        // Progressive darkness
+        for i in 0..<texts.count {
+            let delay = 1.0 + Double(i) * 1.5
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeOut(duration: 0.2)) { textOpacity = 0 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    currentTextIndex = i
-                    
-                    // Fade in new
-                    withAnimation(.easeIn(duration: 0.3)) {
-                        textOpacity = 1
+                    textIndex = min(i, texts.count - 1)
+                    withAnimation(.easeIn(duration: 1)) {
+                        darkness = Double(i + 1) / Double(texts.count)
+                        scale = 1.0 - CGFloat(i) * 0.1
                     }
-                    
-                    // Increase darkness
-                    withAnimation(.easeIn(duration: 1.0)) {
-                        darknessOpacity = Double(i + 1) / Double(breakingTexts.count)
-                    }
-                    
-                    // Shrink character
-                    withAnimation(.easeIn(duration: 0.5)) {
-                        characterScale = 1.0 - (CGFloat(i) * 0.1)
-                    }
+                    withAnimation { textOpacity = 1 }
                 }
             }
         }
         
-        // Transition to overwhelmed after all texts
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(breakingTexts.count) * interval + 0.5) {
-            gameState.navigateTo(.act2Overwhelmed)
-        }
+        // Transition after sequence
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { gameState.navigateTo(.act2Overwhelmed) }
     }
 }
 
-#Preview {
-    BreakingPointView(gameState: GameState())
-}
+#Preview { BreakingPointView(gameState: GameState()) }

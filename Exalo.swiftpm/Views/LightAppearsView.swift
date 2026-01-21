@@ -1,119 +1,139 @@
 import SwiftUI
 
-// Light Appears - A moment of hope before breathing exercise
 struct LightAppearsView: View {
     @Bindable var gameState: GameState
     
-    @State private var lightOpacity: Double = 0
-    @State private var textOpacity: Double = 0
-    @State private var showCharacter: Bool = false
-    @State private var characterExpression: CharacterExpression = .sad
-    @State private var canTap: Bool = false
+    @State private var step = 0
+    @State private var lightOpacity = 0.0
+    @State private var orbScale: CGFloat = 0
+    @State private var orbPulse = false
+    @State private var textOpacity = 0.0
+    @State private var showCharacter = false
+    @State private var expression: CharacterExpression = .sad
+    @State private var canTap = false
+    @State private var isTransitioning = false
     
-    private let darkColor = Color(red: 0.08, green: 0.09, blue: 0.14)
-    private let lightBlue = Color(red: 0.6, green: 0.75, blue: 0.95)
+    // Light orb dialogue
+    private let orbMessages = ["Hey...", "It's okay.", "Let's try something.", "Just breathe with me."]
+    private var safeStep: Int { min(step, orbMessages.count - 1) }
     
     var body: some View {
-        ZStack {
-            // Dark background
-            darkColor
-                .ignoresSafeArea()
+        GeometryReader { geo in
+            let layout = AppLayout(geo)
             
-            // Light from above
-            VStack {
+            ZStack {
+                AppColors.dark.ignoresSafeArea()
+                
+                // Light gradient from orb
                 RadialGradient(
-                    colors: [lightBlue.opacity(lightOpacity * 0.4), Color.clear],
-                    center: .top,
+                    colors: [AppColors.lightBlue.opacity(lightOpacity * 0.3), .clear],
+                    center: UnitPoint(x: 0.3, y: 0.25),
                     startRadius: 0,
-                    endRadius: 400
+                    endRadius: geo.size.width * 0.8
                 )
-                .frame(height: 500)
+                .ignoresSafeArea()
                 
-                Spacer()
-            }
-            .ignoresSafeArea()
-            
-            VStack(spacing: 40) {
-                Spacer()
+                // Light Orb - the guide
+                LightOrbView(scale: orbScale, isPulsing: orbPulse, layout: layout)
+                    .position(x: geo.size.width * 0.3, y: geo.size.height * 0.25)
                 
-                // Character looking up at light
+                // Orb's message
+                if step < orbMessages.count {
+                    Text(orbMessages[safeStep])
+                        .font(.system(size: layout.headline, weight: .medium, design: .rounded))
+                        .foregroundColor(AppColors.lightBlue)
+                        .opacity(textOpacity)
+                        .position(x: geo.size.width * 0.5, y: geo.size.height * 0.42)
+                }
+                
+                // Character
                 if showCharacter {
-                    CharacterView(
-                        expression: characterExpression,
-                        size: 90
-                    )
-                    .transition(.opacity)
+                    CharacterView(expression: expression, size: layout.characterSmall)
+                        .position(x: geo.size.width * 0.65, y: geo.size.height * 0.65)
                 }
                 
-                // Hopeful text
-                VStack(spacing: 12) {
-                    Text("\"What if...\"")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    Text("\"What if I just stopped for a moment?\"")
-                        .font(.system(size: 18))
-                        .foregroundColor(lightBlue.opacity(0.9))
-                }
-                .opacity(textOpacity)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-                
-                Spacer()
-                
-                // Tap indicator - always present, just change opacity
-                Text("tap to continue")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.3))
-                    .opacity(canTap ? 1 : 0)
-                    .frame(height: 20)
-                    .padding(.bottom, 40)
+                // Tap indicator
+                TapIndicator(isVisible: canTap && !isTransitioning, color: .white, layout: layout)
+                    .position(x: geo.size.width / 2, y: layout.bottomY)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { advance() }
         }
-        .onAppear {
-            startLightSequence()
-        }
-        .onTapGesture {
-            if canTap {
-                gameState.navigateTo(.act3Breathe)
-            }
-        }
+        .onAppear { startSequence() }
     }
     
-    private func startLightSequence() {
-        // Light fades in
-        withAnimation(.easeIn(duration: 2.0)) {
-            lightOpacity = 1
+    private func startSequence() {
+        withAnimation(.easeIn(duration: 1.5)) { lightOpacity = 1; orbScale = 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) { orbPulse = true }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeIn(duration: 0.5)) { textOpacity = 1 }
+            Haptics.light()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { withAnimation { showCharacter = true } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { canTap = true }
+    }
+    
+    private func advance() {
+        guard canTap, !isTransitioning else { return }
+        isTransitioning = true
+        Haptics.light()
         
-        // Character appears
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.easeIn(duration: 0.5)) {
-                showCharacter = true
+        if step < orbMessages.count - 1 {
+            withAnimation(.easeOut(duration: 0.2)) { textOpacity = 0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                step += 1
+                if step >= 2 { withAnimation { expression = .hopeful } }
+                withAnimation(.easeIn(duration: 0.4)) { textOpacity = 1 }
+                isTransitioning = false
             }
-        }
-        
-        // Text fades in
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            withAnimation(.easeIn(duration: 0.6)) {
-                textOpacity = 1
-            }
-        }
-        
-        // Character expression changes to hopeful
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                characterExpression = .hopeful
-            }
-        }
-        
-        // Allow tap
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-            canTap = true
+        } else {
+            gameState.navigateTo(.act3Breathe)
         }
     }
 }
 
-#Preview {
-    LightAppearsView(gameState: GameState())
+// MARK: - Light Orb View (shared component)
+struct LightOrbView: View {
+    var scale: CGFloat
+    var isPulsing: Bool
+    var layout: AppLayout
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [AppColors.lightBlue.opacity(0.4), AppColors.lightBlue.opacity(0.1), .clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: layout.isIPad ? 80 : 60
+                    )
+                )
+                .frame(width: layout.isIPad ? 160 : 120)
+                .scaleEffect(isPulsing ? 1.15 : 1.0)
+            
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [.white, AppColors.lightBlue],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: layout.isIPad ? 30 : 22
+                    )
+                )
+                .frame(width: layout.isIPad ? 60 : 45)
+                .shadow(color: AppColors.lightBlue, radius: 15)
+            
+            Circle()
+                .fill(.white)
+                .frame(width: layout.isIPad ? 12 : 8)
+                .offset(x: layout.isIPad ? -12 : -8, y: layout.isIPad ? -12 : -8)
+                .opacity(isPulsing ? 0.8 : 0.5)
+        }
+        .scaleEffect(scale)
+    }
 }
+
+#Preview { LightAppearsView(gameState: GameState()) }
