@@ -13,7 +13,7 @@
 ## Preview
 
 ### Demo
-![App Demo](_Screenshots/demo.mov)
+![App Demo](_Screenshots/demo.gif)
 
 ### Screenshots
 | Home | Morning Scene | Drag Thoughts |
