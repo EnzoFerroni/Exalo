@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Main navigation coordinator for Exalo game
+// Main navigation coordinator for Exalo
 struct ContentView: View {
     @State private var gameState = GameState()
     

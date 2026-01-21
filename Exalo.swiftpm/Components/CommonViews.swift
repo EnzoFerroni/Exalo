@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Layout Helper (HIG-compliant)
+// MARK: - Layout Helper (HIG)
 struct AppLayout {
     let isIPad: Bool
     let screenWidth: CGFloat
