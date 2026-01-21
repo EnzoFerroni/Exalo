@@ -13,7 +13,7 @@
 ## Preview
 
 ### Demo
-![App Demo](_Screenshots/demo.gif)
+![App Demo](_Screenshots/demo.mov)
 
 ### Screenshots
 | Home | Morning Scene | Drag Thoughts |
@@ -23,11 +23,6 @@
 | Overwhelmed | Breathing Exercise | Final Message |
 |-------------|-------------------|---------------|
 | ![Overwhelmed](_Screenshots/overwhelmed.png) | ![Breathe](_Screenshots/breathe.png) | ![Ending](_Screenshots/ending.png) |
-
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
