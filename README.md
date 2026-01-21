@@ -14,7 +14,9 @@
 ## Preview
 
 ### Demo
-![App Demo](_Screenshots/demo.gif)
+<p align="center">
+  <img src="_Screenshots/demo.gif">
+</p>
 
 ### Screenshots
 | Home | Morning Scene | Drag Thoughts |
