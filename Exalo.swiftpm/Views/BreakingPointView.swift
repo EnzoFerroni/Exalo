@@ -9,6 +9,8 @@ struct BreakingPointView: View {
     @State private var textIndex = 0
     @State private var textOpacity = 0.0
     @State private var shake: CGFloat = 0
+    @State private var heartbeatTimer: Timer?
+    @State private var shakeTimer: Timer?
     
     private let texts = ["\"I just need to...\"", "\"I just...\"", "\"...\""]
     private var safeText: String { texts[min(textIndex, texts.count - 1)] }
@@ -43,23 +45,33 @@ struct BreakingPointView: View {
             }
         }
         .onAppear { startSequence() }
+        .onDisappear { stopTimers() }
+    }
+    
+    private func stopTimers() {
+        heartbeatTimer?.invalidate()
+        shakeTimer?.invalidate()
+        heartbeatTimer = nil
+        shakeTimer = nil
     }
     
     private func startSequence() {
-        // Heartbeat animation + haptic
+        // Heartbeat animation
         withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) { heartScale = 1.15 }
         withAnimation(.linear(duration: 0.05).repeatForever(autoreverses: true)) { shake = 2 }
         
         // Haptic heartbeat - strong pulsing
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
-            if darkness >= 0.9 { timer.invalidate(); return }
-            Haptics.heavy()
+        heartbeatTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { @Sendable _ in
+            Task { @MainActor in
+                Haptics.heavy()
+            }
         }
         
         // Haptic shake - continuous vibration
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            if darkness >= 0.9 { timer.invalidate(); return }
-            Haptics.medium()
+        shakeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { @Sendable _ in
+            Task { @MainActor in
+                Haptics.medium()
+            }
         }
         
         // Progressive darkness
@@ -79,7 +91,10 @@ struct BreakingPointView: View {
         }
         
         // Transition after sequence
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { gameState.navigateTo(.act2Overwhelmed) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            stopTimers()
+            gameState.navigateTo(.act2Overwhelmed)
+        }
     }
 }
 

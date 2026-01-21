@@ -25,6 +25,7 @@ struct AppLayout {
     var body: CGFloat { isIPad ? 21 : 17 }
     var subhead: CGFloat { isIPad ? 19 : 15 }
     var footnote: CGFloat { isIPad ? 17 : 13 }
+    var caption: CGFloat { isIPad ? 15 : 12 }
     
     // Button sizes (min 44pt per HIG)
     var buttonWidth: CGFloat { isIPad ? 320 : 220 }

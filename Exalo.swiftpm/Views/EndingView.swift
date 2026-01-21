@@ -3,23 +3,16 @@ import SwiftUI
 struct EndingView: View {
     @Bindable var gameState: GameState
     
-    @State private var step = 0
-    @State private var textOpacity = 0.0
-    @State private var canTap = false
-    @State private var isTransitioning = false
+    @State private var showContent = false
+    @State private var showCards = false
+    @State private var showButton = false
     
-    // Messages including anxiety information
-    private let messages: [(main: String, sub: String, isInfo: Bool)] = [
-        ("Sometimes, we just need to stop.", "And breathe.", false),
-        ("You are not alone.", "1 in 4 people experience anxiety.", true),
-        ("It's okay to feel overwhelmed.", "What matters is how we respond.", true),
-        ("Breathing helps regulate your nervous system.", "It's a simple but powerful tool.", true),
-        ("Remember:", "It's okay to slow down.", false),
-        ("Thank you for playing.", "Take care of yourself. 💙", false)
+    // Impactful info cards about anxiety with better explanations
+    private let infoCards: [(icon: String, title: String, message: String, color: Color)] = [
+        ("person.3.fill", "You're Not Alone", "Over 300 million people worldwide live with anxiety. It's one of the most common mental health experiences — and it's okay to talk about it.", Color(red: 0.5, green: 0.7, blue: 0.9)),
+        ("heart.fill", "Your Feelings Matter", "Anxiety isn't weakness — it's your mind trying to protect you. Acknowledging your feelings is the first step toward understanding them.", Color(red: 0.9, green: 0.6, blue: 0.6)),
+        ("wind", "Breathing Changes Everything", "When you breathe deeply, you activate your parasympathetic nervous system, telling your body: 'I am safe.' This simple act can transform a moment of panic into peace.", Color(red: 0.6, green: 0.85, blue: 0.65))
     ]
-    
-    private var safeStep: Int { min(step, messages.count - 1) }
-    private var currentMessage: (main: String, sub: String, isInfo: Bool) { messages[safeStep] }
     
     var body: some View {
         GeometryReader { geo in
@@ -27,101 +20,126 @@ struct EndingView: View {
             
             ZStack {
                 AppColors.calm.ignoresSafeArea()
+                FloatingCirclesBackground().opacity(0.3)
                 
-                // Subtle floating circles
-                FloatingCirclesBackground()
-                    .opacity(0.3)
-                
-                VStack(spacing: layout.spacing) {
-                    Spacer()
-                    
-                    // Character
-                    CharacterView(expression: .relieved, size: layout.characterSize, showRelief: true)
-                    
-                    // Message card
-                    VStack(spacing: layout.isIPad ? 16 : 12) {
-                        if currentMessage.isInfo {
-                            // Info badge
-                            HStack(spacing: 6) {
-                                Image(systemName: "info.circle.fill")
-                                    .font(.system(size: layout.isIPad ? 16 : 14))
-                                Text("Did you know?")
-                                    .font(.system(size: layout.footnote, weight: .medium, design: .rounded))
-                            }
-                            .foregroundColor(AppColors.lightBlue)
-                            .padding(.bottom, 4)
-                        }
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: layout.isIPad ? 28 : 22) {
+                        Spacer(minLength: layout.isIPad ? 40 : 30)
                         
-                        Text(currentMessage.main)
-                            .font(.system(size: layout.title2, weight: .semibold, design: .rounded))
-                            .foregroundColor(AppColors.textPrimary)
+                        // Character
+                        CharacterView(expression: .relieved, size: layout.characterSmall * 0.85, showRelief: true)
+                            .opacity(showContent ? 1 : 0)
+                            .scaleEffect(showContent ? 1 : 0.8)
                         
-                        if !currentMessage.sub.isEmpty {
-                            Text(currentMessage.sub)
-                                .font(.system(size: layout.body, design: .rounded))
+                        // Main message
+                        VStack(spacing: 8) {
+                            Text("Remember:")
+                                .font(.system(size: layout.body, weight: .medium, design: .rounded))
                                 .foregroundColor(AppColors.textSecondary)
+                            
+                            Text("It's okay to slow down.")
+                                .font(.system(size: layout.title3, weight: .bold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
                         }
-                    }
-                    .opacity(textOpacity)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, layout.isIPad ? 40 : 30)
-                    .padding(.vertical, layout.isIPad ? 30 : 24)
-                    .frame(maxWidth: layout.maxContentWidth)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.white.opacity(currentMessage.isInfo ? 0.9 : 0.7))
-                            .shadow(color: .black.opacity(0.05), radius: 10)
-                    )
-                    .padding(.horizontal, layout.padding)
-                    
-                    Spacer()
-                    
-                    // Navigation
-                    if step >= messages.count - 1 && canTap {
+                        .opacity(showContent ? 1 : 0)
+                        .multilineTextAlignment(.center)
+                        
+                        // Three info cards stacked
+                        VStack(spacing: layout.isIPad ? 16 : 12) {
+                            ForEach(0..<infoCards.count, id: \.self) { i in
+                                EndingInfoCard(card: infoCards[i], layout: layout, delay: Double(i) * 0.15)
+                                    .opacity(showCards ? 1 : 0)
+                                    .offset(y: showCards ? 0 : 20)
+                            }
+                        }
+                        .padding(.horizontal, layout.padding)
+                        
+                        // Final inspiring message
+                        VStack(spacing: 6) {
+                            Text("\"You just took the first step.\"")
+                                .font(.system(size: layout.body, weight: .medium, design: .rounded))
+                                .foregroundColor(AppColors.textSecondary)
+                                .italic()
+                            
+                            Text("Take care of yourself. 💙")
+                                .font(.system(size: layout.headline, weight: .semibold, design: .rounded))
+                                .foregroundColor(AppColors.textPrimary)
+                        }
+                        .opacity(showCards ? 1 : 0)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 8)
+                        
+                        // Try Again button
                         Button(action: {
                             Haptics.success()
                             gameState.resetGame()
                             gameState.navigateTo(.home)
                         }) {
-                            Text("Home")
+                            Text("Try Again")
                                 .font(.system(size: layout.body, weight: .semibold, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(width: layout.buttonWidth, height: layout.buttonHeight)
                                 .background(Capsule().fill(Color.black.opacity(0.85)))
                         }
                         .buttonStyle(.plain)
-                        .padding(.bottom, layout.isIPad ? 80 : 60)
-                    } else {
-                        TapIndicator(isVisible: canTap && !isTransitioning, layout: layout)
-                            .padding(.bottom, layout.isIPad ? 60 : 40)
+                        .opacity(showButton ? 1 : 0)
+                        .padding(.top, 12)
+                        .padding(.bottom, layout.isIPad ? 50 : 40)
                     }
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { advance() }
         }
-        .onAppear { animateStep() }
+        .onAppear { animateIn() }
     }
     
-    private func animateStep() {
-        textOpacity = 0
-        canTap = false
-        
-        withAnimation(.easeIn(duration: 0.5)) { textOpacity = 1 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { canTap = true }
+    private func animateIn() {
+        withAnimation(.easeOut(duration: 0.5)) { showContent = true }
+        withAnimation(.easeOut(duration: 0.6).delay(0.3)) { showCards = true }
+        withAnimation(.easeOut(duration: 0.4).delay(0.8)) { showButton = true }
     }
+}
+
+// MARK: - Ending Info Card
+struct EndingInfoCard: View {
+    let card: (icon: String, title: String, message: String, color: Color)
+    let layout: AppLayout
+    var delay: Double = 0
     
-    private func advance() {
-        guard canTap, !isTransitioning, step < messages.count - 1 else { return }
-        isTransitioning = true
-        Haptics.light()
-        
-        withAnimation(.easeOut(duration: 0.2)) { textOpacity = 0 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            step += 1
-            isTransitioning = false
-            animateStep()
+    var body: some View {
+        HStack(alignment: .top, spacing: layout.isIPad ? 16 : 14) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(card.color.opacity(0.25))
+                    .frame(width: layout.isIPad ? 50 : 44, height: layout.isIPad ? 50 : 44)
+                
+                Image(systemName: card.icon)
+                    .font(.system(size: layout.isIPad ? 22 : 18))
+                    .foregroundColor(card.color)
+            }
+            
+            // Text content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(card.title)
+                    .font(.system(size: layout.body, weight: .bold, design: .rounded))
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text(card.message)
+                    .font(.system(size: layout.footnote, design: .rounded))
+                    .foregroundColor(AppColors.textSecondary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer(minLength: 0)
         }
+        .padding(layout.isIPad ? 18 : 16)
+        .frame(maxWidth: layout.maxContentWidth)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.92))
+                .shadow(color: card.color.opacity(0.15), radius: 8, y: 4)
+        )
     }
 }
 

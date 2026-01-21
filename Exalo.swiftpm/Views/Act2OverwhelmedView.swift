@@ -84,7 +84,9 @@ struct Act2OverwhelmedView: View {
         
         // STRONG haptic feedback synced with shake - more intense!
         hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { _ in
-            Haptics.heavy()
+            Task { @MainActor in
+                Haptics.heavy()
+            }
         }
         
         // Add thoughts progressively
@@ -103,7 +105,9 @@ struct Act2OverwhelmedView: View {
             // Reduce haptic intensity when can continue
             hapticTimer?.invalidate()
             hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-                Haptics.medium()
+                Task { @MainActor in
+                    Haptics.medium()
+                }
             }
             
             withAnimation { canContinue = true }

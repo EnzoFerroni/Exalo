@@ -9,6 +9,7 @@ struct Act3BreatheView: View {
     @State private var breathCount = 0
     @State private var showInstruction = false
     @State private var breatheIn = true
+    @State private var breathTextOpacity = 1.0
     @State private var circleScale: CGFloat = 1.0
     @State private var audioDetector: AudioBreathDetector?
     @State private var showCompletion = false
@@ -37,39 +38,40 @@ struct Act3BreatheView: View {
                 .ignoresSafeArea()
                 .animation(.easeOut(duration: 1), value: progress)
                 
-                // Light orb guide (uses shared component from LightAppearsView)
-                LightOrbView(scale: 0.7, isPulsing: orbPulse, layout: layout)
-                    .position(x: geo.size.width * 0.2, y: geo.size.height * 0.15)
-                    .opacity(0.8)
+                // Light orb guide with speech
+                VStack(alignment: .leading, spacing: 8) {
+                    LightOrbView(scale: 0.6, isPulsing: orbPulse, layout: layout)
+                    
+                    // Speech bubble from light - with smooth fade transitions
+                    if showInstruction && !showCompletion {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(breatheIn ? "Breathe in..." : "Breathe out...")
+                                .font(.system(size: layout.isIPad ? 18 : 15, weight: .semibold, design: .rounded))
+                            
+                            HStack(spacing: 6) {
+                                Image(systemName: "nose")
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 10))
+                                Image(systemName: "mic.fill")
+                            }
+                            .font(.system(size: layout.isIPad ? 14 : 12))
+                            .foregroundColor(AppColors.textSecondary)
+                        }
+                        .foregroundColor(AppColors.textPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.95))
+                                .shadow(color: .black.opacity(0.1), radius: 4)
+                        )
+                        .opacity(breathTextOpacity)
+                    }
+                }
+                .position(x: layout.isIPad ? 120 : 90, y: geo.size.height * 0.18)
                 
                 VStack(spacing: layout.spacing / 2) {
                     Spacer()
-                    
-                    // Breathing instruction
-                    if showInstruction && !showCompletion {
-                        VStack(spacing: layout.isIPad ? 16 : 12) {
-                            HStack(spacing: 12) {
-                                Image(systemName: breatheIn ? "arrow.down" : "arrow.up")
-                                    .font(.system(size: layout.isIPad ? 24 : 18, weight: .medium))
-                                Text(breatheIn ? "Breathe in..." : "Breathe out...")
-                                    .font(.system(size: layout.headline, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundColor(AppColors.lightBlue)
-                            
-                            HStack(spacing: 8) {
-                                Image(systemName: "nose")
-                                Text("→")
-                                Image(systemName: "mic.fill")
-                            }
-                            .font(.system(size: layout.isIPad ? 18 : 14))
-                            .foregroundColor(.white.opacity(0.6))
-                            
-                            Text("Inhale through nose, exhale into microphone")
-                                .font(.system(size: layout.footnote, design: .rounded))
-                                .foregroundColor(.white.opacity(0.5))
-                        }
-                        .padding(.bottom, 20)
-                    }
                     
                     // Main breathing circle
                     ZStack {
@@ -174,12 +176,32 @@ struct Act3BreatheView: View {
     }
     
     private func startBreathingAnimation() {
-        withAnimation(.easeInOut(duration: 3.8)) { circleScale = 1.2; breatheIn = false }
+        // Initial state - breathe out first (3 seconds)
+        withAnimation(.easeInOut(duration: 3)) { circleScale = 1.2 }
         
-        breathTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { _ in
+        // First transition after 2.8s
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.8) {
+            withAnimation(.easeOut(duration: 0.2)) { breathTextOpacity = 0 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                breatheIn = false
+                withAnimation(.easeIn(duration: 0.2)) { breathTextOpacity = 1 }
+            }
+        }
+        
+        // Cycle every 3 seconds
+        breathTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
             Task { @MainActor in
-                withAnimation(.easeInOut(duration: 3.8)) {
+                // Fade out text quickly
+                withAnimation(.easeOut(duration: 0.2)) { breathTextOpacity = 0 }
+                
+                // Change text and fade in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     breatheIn.toggle()
+                    withAnimation(.easeIn(duration: 0.2)) { breathTextOpacity = 1 }
+                }
+                
+                // Circle animation
+                withAnimation(.easeInOut(duration: 2.8)) {
                     circleScale = breatheIn ? 1.0 : 1.2
                 }
             }

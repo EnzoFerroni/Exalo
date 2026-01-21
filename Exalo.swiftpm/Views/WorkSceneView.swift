@@ -10,6 +10,7 @@ struct WorkSceneView: View {
     @State private var thoughts: [DraggableThought] = []
     @State private var showHint = true
     @State private var draggedCount = 0
+    @State private var characterShake: CGFloat = 0
     
     private let thoughtTexts = ["Failure", "Not enough", "Disappointment", "Imperfect", "Behind", "Worthless"]
     
@@ -35,9 +36,10 @@ struct WorkSceneView: View {
                 CharacterView(
                     expression: draggedCount > 2 ? .overwhelmed : .worried,
                     size: layout.characterSmall,
-                    showWorryLines: true,
-                    showSweatDrop: draggedCount > 1
+                    showWorryLines: draggedCount > 1,
+                    showSweatDrop: draggedCount > 2
                 )
+                .offset(x: characterShake)
                 .position(x: geo.size.width / 2, y: geo.size.height * 0.35)
                 .zIndex(1)
                 
@@ -151,24 +153,47 @@ struct WorkSceneView: View {
     private func handleDragEnded(thought: DraggableThought, in geo: GeometryProxy) {
         draggedCount += 1
         showHint = false
-        Haptics.medium()
         
-        // Thought returns with resistance
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            if let index = thoughts.firstIndex(where: { $0.id == thought.id }) {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.5)) {
+        guard let index = thoughts.firstIndex(where: { $0.id == thought.id }) else { return }
+        
+        // First 2 attempts: thought leaves screen (success feeling)
+        if draggedCount <= 2 {
+            Haptics.success()
+            
+            // Move thought off screen
+            let offScreenX = thought.position.x < geo.size.width / 2 ? -100 : geo.size.width + 100
+            withAnimation(.easeOut(duration: 0.3)) {
+                thoughts[index].position = CGPoint(x: offScreenX, y: thought.position.y)
+            }
+            
+            // But it comes back after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
                     thoughts[index].position = thoughts[index].homePosition
                 }
                 Haptics.warning()
+            }
+        } else {
+            // After 2 attempts: thoughts resist more strongly, return immediately
+            Haptics.error()
+            
+            // Start character shake
+            withAnimation(.linear(duration: 0.05).repeatForever(autoreverses: true)) {
+                characterShake = 3
+            }
+            
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
+                thoughts[index].position = thoughts[index].homePosition
             }
         }
         
         // After enough attempts, move to outro
         if draggedCount >= 4 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 withAnimation(.easeIn(duration: 0.3)) {
                     phase = 2
                     textOpacity = 1
+                    characterShake = 0
                 }
                 canTap = true
             }

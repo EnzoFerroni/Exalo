@@ -132,17 +132,25 @@ struct MorningSceneView: View {
         }
     }
     
-    // Fixed positions for thoughts to avoid overlap
+    // Fixed positions for thoughts - responsive and safe margins
     private func getThoughtPosition(index: Int, in geo: GeometryProxy) -> CGPoint {
+        let isSmallScreen = geo.size.width < 400
+        let margin: CGFloat = isSmallScreen ? 0.18 : 0.15
+        
         let positions: [(xRatio: CGFloat, yRatio: CGFloat)] = [
-            (0.2, 0.12),   // Top left
-            (0.8, 0.15),   // Top right
-            (0.15, 0.28),  // Mid left
-            (0.85, 0.30),  // Mid right
-            (0.5, 0.08),   // Top center
+            (margin + 0.05, 0.10),           // Top left
+            (1.0 - margin - 0.05, 0.13),     // Top right
+            (margin + 0.08, 0.24),           // Mid left
+            (1.0 - margin - 0.08, 0.27),     // Mid right
+            (0.5, 0.06),                     // Top center
         ]
         let pos = positions[index % positions.count]
-        return CGPoint(x: geo.size.width * pos.xRatio, y: geo.size.height * pos.yRatio)
+        
+        // Clamp to safe area
+        let x = max(60, min(geo.size.width - 60, geo.size.width * pos.xRatio))
+        let y = max(40, geo.size.height * pos.yRatio)
+        
+        return CGPoint(x: x, y: y)
     }
     
     private func addFloatingThought(text: String, in geo: GeometryProxy) {
