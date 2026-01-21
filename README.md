@@ -1,15 +1,34 @@
 # Exalo
 
-## Sobre o Projeto
+![iPadOS](https://img.shields.io/badge/iPadOS-18.0+-blue.svg)
+![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)
+![SwiftUI](https://img.shields.io/badge/SwiftUI-Pure-purple.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Swift Student Challenge](https://img.shields.io/badge/Swift%20Student%20Challenge-2026-red.svg)
 
-Este projeto é uma experiência narrativa sensorial que busca materializar o sentimento de autocobrança. O objetivo é trazer a imersão emocional. Através do uso criativo dos sensores do sistema iOS, transformamos sentimentos abstratos em interações físicas: o peso dos pensamentos é sentido na resistência do toque, e o alívio da ansiedade é alcançado através do sopro real no microfone.
+> A mindful, story-driven experience about understanding anxiety and finding peace through breathing.
 
-## Features
+**Exalo** is an interactive narrative exploring the overwhelming weight of self-pressure and anxiety. Through gentle interactions and a breathing exercise using the device's microphone, it demonstrates how sometimes we just need to stop and breathe.
 
-Física de "Peso Mental": Objetos com peso variável que exigem esforço para serem arrastados (SpriteKit).
+## Preview
 
-Interação de Respiração: Detecção de sopro via microfone para interagir com o ambiente (AVFoundation).
+### Demo
+![App Demo](_Screenshots/demo.gif)
 
-Feedback Háptico Imersivo: Vibrações que respondem à "dificuldade" de mover os elementos em cena.
+### Screenshots
+| Home | Morning Scene | Drag Thoughts |
+|------|---------------|---------------|
+| ![Home](_Screenshots/home.png) | ![Morning](_Screenshots/morning.png) | ![Thoughts](_Screenshots/thoughts.png) |
 
-Narrativa Ambiental: Transição dinâmica de cores e sons que reflete a jornada do caos para a calma.
+| Overwhelmed | Breathing Exercise | Final Message |
+|-------------|-------------------|---------------|
+| ![Overwhelmed](_Screenshots/overwhelmed.png) | ![Breathe](_Screenshots/breathe.png) | ![Ending](_Screenshots/ending.png) |
+
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+*"Sometimes, we just need to stop and breathe."*

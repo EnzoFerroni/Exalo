@@ -124,23 +124,26 @@ struct WorkSceneView: View {
     
     private func spawnThoughts(in geo: GeometryProxy) {
         let center = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.35)
-        
+
         for (i, text) in thoughtTexts.enumerated() {
             let angle = (Double(i) / Double(thoughtTexts.count)) * 2 * .pi
             let radius: CGFloat = geo.size.width < 500 ? 100 : 150
-            
+
+            let offsetX = CGFloat(cos(angle)) * radius
+            let offsetY = CGFloat(sin(angle)) * radius
+
             let thought = DraggableThought(
                 text: text,
                 position: CGPoint(
-                    x: center.x + cos(angle) * radius,
-                    y: center.y + sin(angle) * radius
+                    x: center.x + offsetX,
+                    y: center.y + offsetY
                 ),
                 homePosition: CGPoint(
-                    x: center.x + cos(angle) * radius,
-                    y: center.y + sin(angle) * radius
+                    x: center.x + offsetX,
+                    y: center.y + offsetY
                 )
             )
-            
+
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.15) {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                     thoughts.append(thought)
