@@ -15,7 +15,7 @@
 
 ### Demo
 <p align="center">
-  <img src="_Screenshots/demo.gif">
+  <img src="_Screenshots/demo.gif" width="400">
 </p>
 
 ### Screenshots
