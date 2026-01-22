@@ -1,7 +1,7 @@
 # Exalo
 
 <p align="center">
-  <img src="https://img.shields.io/badge/iPadOS-18.0+-blue.svg">
+  <img src="https://img.shields.io/badge/iPadOS-17.0+-blue.svg">
   <img src="https://img.shields.io/badge/Swift-6.0-orange.svg">
   <img src="https://img.shields.io/badge/License-MIT-green.svg">
   <img src="https://img.shields.io/badge/Swift%20Student%20Challenge-2026-red.svg">
@@ -9,7 +9,7 @@
 
 > A mindful, story-driven experience about understanding anxiety and finding peace through breathing.
 
-**Exalo** is an interactive narrative exploring the overwhelming weight of self-pressure and anxiety. Through gentle interactions and a breathing exercise using the device's microphone, it demonstrates how sometimes we just need to stop and breathe.
+**Exalo** is an interactive narrative exploring the overwhelming weight of self-pressure and anxiety. Through gentle interactions and a breathing exercise, it demonstrates how sometimes we just need to stop and breathe.
 
 ## Preview
 
