@@ -19,6 +19,7 @@ An interactive story about anxiety and self-pressure that ends in a guided breat
 - [Built With](#built-with)
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
+- [Author](#author)
 - [License](#license)
 
 ## About
@@ -72,6 +73,21 @@ Exalo.swiftpm/
 ├── Components/            Character, shared views, haptics
 └── Views/                 One view per scene
 ```
+
+## Author
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="100%">
+        <a href="https://github.com/EnzoFerroni"><img src="https://github.com/EnzoFerroni.png" width="90" alt="Enzo Ferroni"/></a>
+        <br/><sub><b>Enzo Ferroni</b></sub><br/><br/>
+        <a href="https://github.com/EnzoFerroni"><img src="https://skillicons.dev/icons?i=github" alt="GitHub"/></a>
+        <a href="https://www.linkedin.com/in/enzoferroni/"><img src="https://skillicons.dev/icons?i=linkedin" alt="LinkedIn"/></a>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## License
 
